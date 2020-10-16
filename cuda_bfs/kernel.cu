@@ -1,23 +1,21 @@
-
-#include "cuda_runtime.h"
-#include "device_launch_parameters.h"
 #include <cuda.h>
+#include <cuda_runtime.h>
+#include <device_launch_parameters.h>
 #include <device_functions.h>
 #include <cuda_runtime_api.h>
-
-#include <stdio.h>
-#include <stdlib.h>
-#include <math.h>
+#include <cstdio>
+#include <cstdlib>
+#include <cmath>
 #include <conio.h>
 #define NUM_NODES 5
 
-typedef struct
+using Node = struct
 {
 	int start;     // Index of first adjacent node in Ea	
 	int length;    // Number of adjacent nodes 
-} Node;
+};
 
-__global__ void CUDA_BFS_KERNEL(Node *Va, int *Ea, bool *Fa, bool *Xa, int *Ca,bool *done)
+__global__ void CUDA_BFS_KERNEL(Node* Va, int* Ea, bool* Fa, bool* Xa, int* Ca, bool* done)
 {
 
 	int id = threadIdx.x + blockIdx.x * blockDim.x;
@@ -30,12 +28,11 @@ __global__ void CUDA_BFS_KERNEL(Node *Va, int *Ea, bool *Fa, bool *Xa, int *Ca,b
 		printf("%d ", id); //This printf gives the order of vertices in BFS	
 		Fa[id] = false;
 		Xa[id] = true;
-		__syncthreads(); 
-		int k = 0;
-		int i;
+		__syncthreads();
+
 		int start = Va[id].start;
 		int end = start + Va[id].length;
-		for (int i = start; i < end; i++) 
+		for (int i = start; i < end; i++)
 		{
 			int nid = Ea[i];
 
@@ -57,13 +54,8 @@ __global__ void CUDA_BFS_KERNEL(Node *Va, int *Ea, bool *Fa, bool *Xa, int *Ca,b
 
 int main()
 {
+	Node node[NUM_NODES];
 
-
-
-
-	 Node node[NUM_NODES];
-	
-	
 	//int edgesSize = 2 * NUM_NODES;
 	int edges[NUM_NODES];
 
@@ -83,7 +75,7 @@ int main()
 	node[4].length = 0;
 
 	edges[0] = 1;
-	edges[1] = 2;	
+	edges[1] = 2;
 	edges[2] = 4;
 	edges[3] = 3;
 	edges[4] = 4;
@@ -96,30 +88,28 @@ int main()
 	frontier[source] = true;
 
 	Node* Va;
-	cudaMalloc((void**)&Va, sizeof(Node)*NUM_NODES);
-	cudaMemcpy(Va, node, sizeof(Node)*NUM_NODES, cudaMemcpyHostToDevice);
+	cudaMalloc((void**)&Va, sizeof(Node) * NUM_NODES);
+	cudaMemcpy(Va, node, sizeof(Node) * NUM_NODES, cudaMemcpyHostToDevice);
 
 	int* Ea;
-	cudaMalloc((void**)&Ea, sizeof(Node)*NUM_NODES);
-	cudaMemcpy(Ea, edges, sizeof(Node)*NUM_NODES, cudaMemcpyHostToDevice);
+	cudaMalloc((void**)&Ea, sizeof(Node) * NUM_NODES);
+	cudaMemcpy(Ea, edges, sizeof(Node) * NUM_NODES, cudaMemcpyHostToDevice);
 
 	bool* Fa;
-	cudaMalloc((void**)&Fa, sizeof(bool)*NUM_NODES);
-	cudaMemcpy(Fa, frontier, sizeof(bool)*NUM_NODES, cudaMemcpyHostToDevice);
+	cudaMalloc((void**)&Fa, sizeof(bool) * NUM_NODES);
+	cudaMemcpy(Fa, frontier, sizeof(bool) * NUM_NODES, cudaMemcpyHostToDevice);
 
 	bool* Xa;
-	cudaMalloc((void**)&Xa, sizeof(bool)*NUM_NODES);
-	cudaMemcpy(Xa, visited, sizeof(bool)*NUM_NODES, cudaMemcpyHostToDevice);
+	cudaMalloc((void**)&Xa, sizeof(bool) * NUM_NODES);
+	cudaMemcpy(Xa, visited, sizeof(bool) * NUM_NODES, cudaMemcpyHostToDevice);
 
 	int* Ca;
-	cudaMalloc((void**)&Ca, sizeof(int)*NUM_NODES);
-	cudaMemcpy(Ca, cost, sizeof(int)*NUM_NODES, cudaMemcpyHostToDevice);
+	cudaMalloc((void**)&Ca, sizeof(int) * NUM_NODES);
+	cudaMemcpy(Ca, cost, sizeof(int) * NUM_NODES, cudaMemcpyHostToDevice);
 
-	
 
 	int num_blks = 1;
 	int threads = 5;
-
 
 
 	bool done;
@@ -133,23 +123,22 @@ int main()
 		count++;
 		done = true;
 		cudaMemcpy(d_done, &done, sizeof(bool), cudaMemcpyHostToDevice);
-		CUDA_BFS_KERNEL <<<num_blks, threads >>>(Va, Ea, Fa, Xa, Ca,d_done);
-		cudaMemcpy(&done, d_done , sizeof(bool), cudaMemcpyDeviceToHost);
+		CUDA_BFS_KERNEL <<<num_blks, threads >>> (Va, Ea, Fa, Xa, Ca, d_done);
+		cudaMemcpy(&done, d_done, sizeof(bool), cudaMemcpyDeviceToHost);
 
 	} while (!done);
 
 
 
+	cudaMemcpy(cost, Ca, sizeof(int) * NUM_NODES, cudaMemcpyDeviceToHost);
 
-	cudaMemcpy(cost, Ca, sizeof(int)*NUM_NODES, cudaMemcpyDeviceToHost);
-	
 	printf("Number of times the kernel is called : %d \n", count);
 
 
 	printf("\nCost: ");
-	for (int i = 0; i<NUM_NODES; i++)
-		printf( "%d    ", cost[i]);
+	for (int i : cost)
+		printf("%d    ", i);
 	printf("\n");
 	_getch();
-	
+
 }
